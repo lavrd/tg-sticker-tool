@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
-	"github.com/pkg/errors"
 )
 
 var src, dst string
@@ -33,19 +32,21 @@ func main() {
 
 func walk(path string, d fs.DirEntry, err error) error {
 	if err != nil {
-		return errors.Wrap(err, "failed to inspect entity while walking")
+		return fmt.Errorf("failed to inspect entity while walking: %w", err)
 	}
 	if d.IsDir() || strings.Contains(path, ".DS") {
 		return nil
 	}
-	err = prepare(path)
-	return errors.Wrap(err, "failed to prepare image")
+	if err = prepare(path); err != nil {
+		return fmt.Errorf("failed to prepare image: %w", err)
+	}
+	return nil
 }
 
 func prepare(path string) error {
 	img, err := imaging.Open(path)
 	if err != nil {
-		return errors.Wrap(err, "failed to open image")
+		return fmt.Errorf("failed to open image: %w", err)
 	}
 	if img.Bounds().Max.X > img.Bounds().Max.Y {
 		img = imaging.Resize(img, 512, 0, imaging.Lanczos)
@@ -56,7 +57,7 @@ func prepare(path string) error {
 	ext := filepath.Ext(path)
 	dst := fmt.Sprintf("%s/%s.png", dst, filename[:len(filename)-len(ext)])
 	if err := imaging.Save(img, dst, imaging.PNGCompressionLevel(png.BestCompression)); err != nil {
-		return errors.Wrap(err, "failed to save image")
+		return fmt.Errorf("failed to save image: %w", err)
 	}
 
 	log.Println("Saved prepared sticker:", filename)
@@ -66,7 +67,7 @@ func prepare(path string) error {
 func initializeFolder() error {
 	if _, err := os.Stat(dst); os.IsNotExist(err) {
 		if err := os.Mkdir(dst, os.ModePerm); err != nil {
-			return errors.Wrap(err, "failed to create target folder")
+			return fmt.Errorf("failed to create directory: %w", err)
 		}
 	}
 	return nil
